@@ -1,0 +1,7 @@
+[carrier]
+provider = "china_unicom"
+min_refresh_seconds = 300
+
+[china_unicom]
+# 旧版单账户兼容配置；新绑定账户由 accounts 注册表管理独立会话路径。
+session_path = ""

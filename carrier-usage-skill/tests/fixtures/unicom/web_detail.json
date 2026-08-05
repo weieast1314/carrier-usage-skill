@@ -1,0 +1,77 @@
+{
+  "code": "0000",
+  "mobile": "13800138000",
+  "packageName": "测试套餐39元",
+  "unshared": [
+    {
+      "type": "Data",
+      "details": [
+        {
+          "elemType": "3",
+          "addUpItemName": "测试90GB共享流量包",
+          "flowType": "1",
+          "total": "92160",
+          "use": "6144",
+          "remain": "86016",
+          "shareFlag": "1",
+          "viceCardlist": [
+            {"userMobile": "encrypted-primary", "usernumber": "138****8000", "currentLoginFlag": "1", "use": "5120"},
+            {"userMobile": "encrypted-secondary", "usernumber": "138****8001", "currentLoginFlag": "0", "use": "1024"}
+          ]
+        },
+        {
+          "elemType": "3",
+          "addUpItemName": "测试10GB共享流量包",
+          "flowType": "1",
+          "total": "10240",
+          "use": "0",
+          "remain": "10240",
+          "shareFlag": "1"
+        }
+      ]
+    }
+  ],
+  "resources": [
+    {
+      "type": "Voice",
+      "details": [
+        {
+          "elemType": "1",
+          "addUpItemName": "测试200分钟语音包",
+          "total": "200",
+          "use": "0",
+          "remain": "200",
+          "shareFlag": "1"
+        },
+        {
+          "elemType": "1",
+          "addUpItemName": "测试800分钟语音包",
+          "total": "800",
+          "use": "1",
+          "remain": "799",
+          "shareFlag": "1",
+          "viceCardlist": [
+            {"userMobile": "encrypted-primary", "usernumber": "138****8000", "currentLoginFlag": "1", "use": "0"},
+            {"userMobile": "encrypted-secondary", "usernumber": "138****8001", "currentLoginFlag": "0", "use": "1"}
+          ]
+        }
+      ]
+    },
+    {
+      "type": "smsList",
+      "details": [
+        {
+          "elemType": "2",
+          "addUpItemName": "套餐内短信",
+          "total": "0",
+          "use": "0",
+          "remain": "0"
+        }
+      ]
+    }
+  ],
+  "viceCardLits": [
+    {"number": "138****8000", "numberFlag": "主卡", "secretNumber": "encrypted-primary"},
+    {"number": "138****8001", "numberFlag": "副卡", "secretNumber": "encrypted-secondary"}
+  ]
+}

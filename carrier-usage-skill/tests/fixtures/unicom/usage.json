@@ -1,0 +1,62 @@
+{
+  "unshared": [
+    {
+      "type": "Data",
+      "details": [
+        {
+          "elemType": "3",
+          "addUpItemName": "通用流量",
+          "flowType": "1",
+          "total": "10240",
+          "use": "3072",
+          "remain": "7168",
+          "xexceedvalue": "0"
+        },
+        {
+          "elemType": "3",
+          "addUpItemName": "应用定向流量",
+          "flowType": "2",
+          "total": "20480",
+          "use": "1024",
+          "remain": "19456",
+          "xexceedvalue": "0"
+        },
+        {
+          "elemType": "3",
+          "addUpItemName": "无限流量权益",
+          "flowType": "1",
+          "total": "0",
+          "use": "512",
+          "remain": "0",
+          "xexceedvalue": "0"
+        }
+      ]
+    }
+  ],
+  "resources": [
+    {
+      "type": "Voice",
+      "details": [
+        {
+          "elemType": "1",
+          "addUpItemName": "国内语音",
+          "total": "500",
+          "use": "120",
+          "remain": "380"
+        }
+      ]
+    },
+    {
+      "type": "smsList",
+      "details": [
+        {
+          "elemType": "2",
+          "addUpItemName": "国内短信",
+          "total": "100",
+          "use": "12",
+          "remain": "88"
+        }
+      ]
+    }
+  ]
+}

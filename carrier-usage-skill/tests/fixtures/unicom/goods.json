@@ -1,0 +1,13 @@
+{
+  "code": "0000",
+  "data": {
+    "res": [
+      {
+        "mainNumber": "masked-in-fixture",
+        "productName": "畅享套餐",
+        "monthlyFee": "29.00",
+        "effectiveDate": "2026-01-01"
+      }
+    ]
+  }
+}

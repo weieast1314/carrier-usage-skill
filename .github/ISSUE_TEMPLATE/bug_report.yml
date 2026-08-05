@@ -1,0 +1,50 @@
+name: 缺陷报告
+description: 报告查询、解析、CLI 或 Provider 问题
+title: "[缺陷] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        请只提交完全脱敏的信息。不要粘贴 OpenID、ticket、Cookie、token、完整手机号、请求头、抓包或原始运营商响应。
+  - type: checkboxes
+    id: redaction
+    attributes:
+      label: 隐私确认
+      options:
+        - label: 我已经删除手机号、OpenID、ticket、Cookie、token 和未脱敏的运营商响应。
+          required: true
+        - label: 我确认查询的是本人或已获明确授权的账户。
+          required: true
+  - type: dropdown
+    id: provider
+    attributes:
+      label: 运营商
+      options:
+        - 中国联通
+        - 中国移动
+        - 中国电信
+        - 中国广电
+        - 其他
+    validations:
+      required: true
+  - type: input
+    id: command
+    attributes:
+      label: 执行的命令
+      placeholder: doctor / query / capabilities（不要包含凭据）
+    validations:
+      required: true
+  - type: input
+    id: exit-code
+    attributes:
+      label: 退出码
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: 问题描述和脱敏错误
+      description: 说明预期行为、实际行为和复现步骤。
+    validations:
+      required: true
