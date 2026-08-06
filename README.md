@@ -39,6 +39,8 @@ carrier-usage-skill/            # 仓库根（git 项目）
 
 - **0.4.0**：补齐中国联通只读查询能力——新增交费记录（`payments`）、电子发票（`invoices`）、返费与赠款（`rebates`）、金融合约账单（`contract-bills`）以及需短信二次认证的详单查询（`usage-details`）；完善多账户与默认卡管理。
 - **0.4.1**：重组仓库为标准 SkillHub 布局（外层 git 项目 + 嵌套 `carrier-usage-skill/` Skill 包），并加入上游限流识别与指数退避重试。
+- **0.4.2**：联通接口层限流识别与指数退避重试正式发布。
+- **0.4.3**：新增 `scripts/publish_skill.sh` 发布脚本，发布前自动排除 `.venv`/缓存等超大目录，避免 skillhub CLI 打包失败。
 
 | 运营商 | 话费/账单 | 用量明细 | 成员/副卡 | 其他资源 | 状态 |
 |---|---:|---:|---:|---:|---|
