@@ -38,9 +38,25 @@ jobs:
 
       - name: 安装 skillhub CLI
         run: |
-          # skillhub 是独立 CLI（curl 脚本安装到 ~/.local/bin），非 PyPI 包
-          curl -fsSL --retry 3 --retry-delay 5 https://skillhub.cn/install.sh | bash
+          # skillhub 是独立 CLI（非 PyPI 包）。install.sh 在部分区域返回 566，
+          # 改为从 COS 发布源直接下载 tar.gz 安装。
+          set -euo pipefail
+          BASE_DIR="$HOME/.skillhub"
+          mkdir -p "$BASE_DIR" "$HOME/.local/bin"
+          VERSION_JSON="$(curl -fsSL --retry 3 --retry-delay 5 \
+            https://skillhub-1388575217.cos.ap-guangzhou.myqcloud.com/version.json)"
+          ZIP_URL="$(printf '%s' "$VERSION_JSON" | python3 -c 'import sys,json;print(json.load(sys.stdin)["zip_url"])')"
+          echo "下载 skillhub CLI: $ZIP_URL"
+          curl -fsSL --retry 3 --retry-delay 5 "$ZIP_URL" -o /tmp/skillhub-cli.tar.gz
+          rm -rf /tmp/skillhub-cli-extract
+          mkdir -p /tmp/skillhub-cli-extract
+          tar -xzf /tmp/skillhub-cli.tar.gz -C /tmp/skillhub-cli-extract
+          cp -R /tmp/skillhub-cli-extract/cli/. "$BASE_DIR/"
+          # 创建 skillhub 包装脚本（与本地一致：调用 skills_store_cli.py）
+          printf '#!/usr/bin/env bash\nexec python3 "%s/skills_store_cli.py" "$@"\n' "$BASE_DIR" > "$HOME/.local/bin/skillhub"
+          chmod +x "$HOME/.local/bin/skillhub"
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          skillhub --version
 
       - name: 登录 skillhub
         run: skillhub login --key "$SKILLHUB_TOKEN"
