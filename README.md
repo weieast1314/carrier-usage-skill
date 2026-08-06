@@ -19,14 +19,18 @@
 carrier-usage-skill/            # 仓库根（git 项目）
 ├── README.md                   # 本文件
 ├── LICENSE
-├── pyproject.toml              # 包配置（packages 指向子目录）
-├── .github/workflows/ci.yml
+├── .github/workflows/          # ci.yml / publish.yml
 ├── assets/                     # 资源文件（logo 等）
 ├── docs/                       # 项目级设计/规划文档
-└── carrier-usage-skill/        # 二级文件夹 = Skill 包
+├── scripts/                    # 仓库级脚本（发布等）
+└── carrier-usage-skill/        # 二级文件夹 = Skill 包（含 pyproject.toml）
     ├── SKILL.md                # 必需：YAML 元数据 + Markdown 指令
+    ├── pyproject.toml          # 包配置（在 Skill 包内）
+    ├── README.md               # 包内说明（链接回本文件）
+    ├── carrier_usage/          # 源码包
     ├── scripts/                # 可执行脚本
-    └── references/             # 按需加载的参考文档
+    ├── references/             # 按需加载的参考文档
+    └── tests/                  # 测试
 ```
 
 发布、安装与开发命令都需在 `carrier-usage-skill/` 二级文件夹内执行（详见下文）。
@@ -275,24 +279,31 @@ cd carrier-usage-skill
 
 ```bash
 # 1. 更新 carrier-usage-skill/SKILL.md 的 version 字段到新版本（如 0.4.4）
-# 2. 提交并推送
+# 2. 在 CHANGELOG.md 增补该版本的说明段落（## X.Y.Z - 日期）
+# 3. 提交并推送
 git commit -am "Release 0.4.4: ..." && git push
-# 3. 用发布脚本发布（changelog 可选）
-bash scripts/publish_skill.sh --changelog "0.4.4: 本次更新说明"
+# 4. 用发布脚本发布（版本说明自动提取，无需手写）
+bash scripts/publish_skill.sh
 ```
 
-发布脚本还支持 `--version-check`（仅检查 SKILL.md 版本）和 `--dry-run`（仅预览将要打包的目录，不真正发布）。
+发布脚本的版本说明（`--changelog`）缺省时按以下优先级自动提取真实说明：
+
+1. git tag 的 annotation message（建议打 annotated tag：`git tag -a v0.4.4 -m "0.4.4: ..."`）；
+2. 仓库根 `CHANGELOG.md` 中 `## 0.4.4` 对应段落；
+3. 兜底占位文本。
+
+发布脚本还支持 `--changelog "自定义说明"`（覆盖自动提取）、`--version-check`（仅检查 SKILL.md 版本）和 `--dry-run`（仅预览将要打包的目录，不真正发布）。
 
 ### 自动发布（推荐）
 
-项目配置了 `.github/workflows/publish.yml`：推送形如 `v0.4.4` 的 tag 时，GitHub Actions 会自动安装 skillhub CLI、用 `SKILLHUB_TOKEN` 登录、校验 tag 与 `SKILL.md` 的 `version` 一致后发布。**前提**是在仓库 `Settings → Secrets and variables → Actions` 中添加名为 `SKILLHUB_TOKEN` 的密钥（值为 `skillhub login --key` 所用的登录密钥）。
+项目配置了 `.github/workflows/publish.yml`：推送形如 `v0.4.4` 的 tag 时，GitHub Actions 会自动安装 skillhub CLI、用 `SKILLHUB_TOKEN` 登录、校验 tag 与 `SKILL.md` 的 `version` 一致后发布，**版本说明由脚本自动提取**（优先 tag annotation，其次 `CHANGELOG.md`）。**前提**是在仓库 `Settings → Secrets and variables → Actions` 中添加名为 `SKILLHUB_TOKEN` 的密钥（值为 `skillhub login --key` 所用的登录密钥）。
 
 标准发布步骤：
 
 ```bash
-# 1. 本地更新 SKILL.md 的 version 并提交推送
-# 2. 打 tag（tag 名需去掉 v 前缀后等于 SKILL.md 的 version）
-git tag v0.4.4
+# 1. 本地更新 SKILL.md 的 version、在 CHANGELOG.md 增补说明并提交推送
+# 2. 打 annotated tag（tag 名去掉 v 前缀后等于 SKILL.md 的 version）
+git tag -a v0.4.4 -m "0.4.4: 本次真实版本说明"
 git push origin v0.4.4
 # 3. 等待 Actions 工作流完成自动发布
 ```

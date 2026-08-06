@@ -10,12 +10,18 @@
 # 用法：
 #   scripts/publish_skill.sh [--changelog "说明文字"] [--version-check]
 #
+# 版本说明（--changelog）缺省时，按以下优先级自动提取真实说明：
+#   1. git tag 的 annotation message（建议打 annotated tag：git tag -a vX.Y.Z -m "..."）
+#   2. 仓库根 CHANGELOG.md 中 "## X.Y.Z" 对应段落
+#   3. 兜底占位文本
+#
 # 前置条件：已安装 skillhub CLI 且已登录（skillhub auth whoami）。
 set -euo pipefail
 
 # 仓库根目录（脚本位于 <root>/scripts/）
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SKILL_DIR="$ROOT_DIR/carrier-usage-skill"
+CHANGELOG_FILE="$ROOT_DIR/CHANGELOG.md"
 
 # 需排除、不应进入发布包的路径（相对 SKILL_DIR）
 EXCLUDES=(
@@ -50,6 +56,55 @@ while [ $# -gt 0 ]; do
   esac
 done
 
+# 从 SKILL.md 读取版本号（去掉 v 前缀即为 CHANGELOG 段落标题）
+SKILL_VERSION="$(grep -m1 '^version:' "$SKILL_DIR/SKILL.md" | sed 's/version:[[:space:]]*//')"
+
+# 提取某版本的发布说明：优先 git tag annotation，其次 CHANGELOG.md 段落，最后占位
+extract_changelog() {
+  local ver="$1"
+  local tag="v$ver"
+  local note=""
+
+  # 1) git tag annotation（仅当是 annotated tag 对象时；轻量 tag 的 %(contents) 会误返回 commit message，需跳过）
+  if command -v git >/dev/null 2>&1 && git rev-parse "$tag" >/dev/null 2>&1; then
+    if [ "$(git cat-file -t "refs/tags/$tag" 2>/dev/null)" = "tag" ]; then
+      local anno
+      anno="$(git for-each-ref --format='%(contents)' "refs/tags/$tag" 2>/dev/null | sed '/^$/d')"
+      if [ -n "$anno" ]; then
+        note="$anno"
+      fi
+    fi
+  fi
+
+  # 2) CHANGELOG.md 中 "## X.Y.Z" 段落（到下一个 "## " 或文件尾）
+  if [ -z "$note" ] && [ -f "$CHANGELOG_FILE" ]; then
+    note="$(awk -v v="$ver" '
+      /^## / {
+        if (found) exit
+        sub(/^##[[:space:]]*/, "")
+        # 标题形如 "0.4.5 - 2026-08-06" 或 "0.4.5"
+        split($0, parts, /[[:space:]]*-[[:space:]]*/)
+        if (parts[1] == v) { found=1; next }
+        next
+      }
+      found { print }
+    ' "$CHANGELOG_FILE" | sed '/^$/d')"
+  fi
+
+  # 3) 兜底占位
+  if [ -z "$note" ]; then
+    note="发布版本 $tag"
+  fi
+
+  printf '%s' "$note"
+}
+
+# --changelog 未显式提供时，自动提取真实版本说明
+if [ -z "$CHANGELOG" ]; then
+  CHANGELOG="$(extract_changelog "$SKILL_VERSION")"
+fi
+echo "版本说明：$CHANGELOG"
+
 # 确保 skillhub 可用（本地可能装在 ~/.local/bin，CI 可能装在 pip --user 的 bin）
 if ! command -v skillhub >/dev/null 2>&1; then
   USER_BIN="$(python3 -m site --user-base 2>/dev/null)/bin"
@@ -66,6 +121,7 @@ if [ "$VERSION_CHECK" -eq 1 ]; then
     echo "SKILL.md 缺少 version 字段" >&2; exit 1
   fi
   echo "当前 SKILL.md 版本：$(grep '^version:' "$SKILL_DIR/SKILL.md")"
+  exit 0
 fi
 
 # 构造临时发布目录

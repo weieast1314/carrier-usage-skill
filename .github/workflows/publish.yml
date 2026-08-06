@@ -63,7 +63,8 @@ jobs:
         env:
           SKILLHUB_TOKEN: ${{ secrets.SKILLHUB_TOKEN }}
 
-      - name: 发布（自动排除 .venv/缓存）
+      - name: 发布（自动排除 .venv/缓存，版本说明自动提取）
         run: |
-          bash scripts/publish_skill.sh \
-            --changelog "发布版本 ${GITHUB_REF_NAME}（由 tag 自动触发）"
+          # 版本说明优先取 git tag annotation；若无则取 CHANGELOG.md 对应段落；最后兜底占位。
+          # 建议打 annotated tag：git tag -a vX.Y.Z -m "本次真实版本说明"
+          bash scripts/publish_skill.sh

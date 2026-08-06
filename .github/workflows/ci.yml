@@ -57,7 +57,8 @@ jobs:
         working-directory: carrier-usage-skill
         run: python -m build
       - name: 审计依赖
-        run: python -m pip_audit
+        working-directory: carrier-usage-skill
+        run: python -m pip_audit --skip-editable
 
   secrets:
     name: Gitleaks 秘密扫描
