@@ -38,8 +38,9 @@ jobs:
 
       - name: 安装 skillhub CLI
         run: |
-          curl -fsSL https://skillhub.cn/install.sh | bash
-          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          python -m pip install --upgrade pip
+          python -m pip install skillhub-cli
+          echo "$(python -m site --user-base)/bin" >> "$GITHUB_PATH"
 
       - name: 登录 skillhub
         run: skillhub login --key "$SKILLHUB_TOKEN"

@@ -50,9 +50,10 @@ while [ $# -gt 0 ]; do
   esac
 done
 
-# 确保 skillhub 可用
+# 确保 skillhub 可用（本地可能装在 ~/.local/bin，CI 可能装在 pip --user 的 bin）
 if ! command -v skillhub >/dev/null 2>&1; then
-  export PATH="$HOME/.local/bin:$PATH"
+  USER_BIN="$(python3 -m site --user-base 2>/dev/null)/bin"
+  export PATH="$HOME/.local/bin:$USER_BIN:$PATH"
 fi
 if ! command -v skillhub >/dev/null 2>&1; then
   echo "未找到 skillhub CLI，请先安装：pip install skillhub-cli" >&2
