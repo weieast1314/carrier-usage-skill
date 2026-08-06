@@ -266,6 +266,38 @@ cd carrier-usage-skill
 
 提交 issue 前必须删除手机号、ticket、Cookie、token、认证请求头和原始运营商响应。安全问题请不要公开披露敏感样本；先使用 GitHub Security Advisory 私下报告。
 
+## 发布流程
+
+发布目标是 SkillHub。核心约束：skillhub CLI **不会读取 `.gitignore`**，会把 `.venv`（数百 MB）和各类缓存目录一并打包，导致上传失败。因此统一通过发布脚本发布，脚本会先把 Skill 包复制到一个临时目录并排除 `.venv`、`.env`、`.mypy_cache`、`.pytest_cache`、`.ruff_cache`、`__pycache__`、`*.egg-info` 等后发布，发布后自动清理。
+
+### 本地发布
+
+```bash
+# 1. 更新 carrier-usage-skill/SKILL.md 的 version 字段到新版本（如 0.4.4）
+# 2. 提交并推送
+git commit -am "Release 0.4.4: ..." && git push
+# 3. 用发布脚本发布（changelog 可选）
+bash scripts/publish_skill.sh --changelog "0.4.4: 本次更新说明"
+```
+
+发布脚本还支持 `--version-check`（仅检查 SKILL.md 版本）和 `--dry-run`（仅预览将要打包的目录，不真正发布）。
+
+### 自动发布（推荐）
+
+项目配置了 `.github/workflows/publish.yml`：推送形如 `v0.4.4` 的 tag 时，GitHub Actions 会自动安装 skillhub CLI、用 `SKILLHUB_TOKEN` 登录、校验 tag 与 `SKILL.md` 的 `version` 一致后发布。**前提**是在仓库 `Settings → Secrets and variables → Actions` 中添加名为 `SKILLHUB_TOKEN` 的密钥（值为 `skillhub login --key` 所用的登录密钥）。
+
+标准发布步骤：
+
+```bash
+# 1. 本地更新 SKILL.md 的 version 并提交推送
+# 2. 打 tag（tag 名需去掉 v 前缀后等于 SKILL.md 的 version）
+git tag v0.4.4
+git push origin v0.4.4
+# 3. 等待 Actions 工作流完成自动发布
+```
+
+若 tag 与 `SKILL.md` 版本不一致，工作流会在校验步骤直接失败，不会发布错误版本。
+
 ## 许可证与来源说明
 
 原创代码采用 [Apache License 2.0](LICENSE)。项目参考公开实现的接口行为进行独立实现，没有复制 GPL 项目的源码或文档。
