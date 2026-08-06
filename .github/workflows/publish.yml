@@ -1,0 +1,52 @@
+name: 发布到 SkillHub
+
+# 推送形如 v0.4.3 的 tag 时，自动发布对应版本到 SkillHub。
+# 前置条件：在仓库 Settings → Secrets and variables → Actions 中添加
+#   SKILLHUB_TOKEN  —— skillhub 登录密钥（skillhub login --key 所用）
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    name: 发布 Skill 到 SkillHub
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出源码
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: 配置 Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.12"
+
+      - name: 校验 tag 与 SKILL.md 版本一致
+        id: verify
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          SKILL_VERSION="$(grep -m1 '^version:' carrier-usage-skill/SKILL.md | sed 's/version:[[:space:]]*//')"
+          echo "tag 版本: $TAG"
+          echo "SKILL.md 版本: $SKILL_VERSION"
+          if [ "$TAG" != "$SKILL_VERSION" ]; then
+            echo "错误：tag ($TAG) 与 SKILL.md version ($SKILL_VERSION) 不一致。" >&2
+            exit 1
+          fi
+
+      - name: 安装 skillhub CLI
+        run: |
+          curl -fsSL https://skillhub.cn/install.sh | bash
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: 登录 skillhub
+        run: skillhub login --key "$SKILLHUB_TOKEN"
+        env:
+          SKILLHUB_TOKEN: ${{ secrets.SKILLHUB_TOKEN }}
+
+      - name: 发布（自动排除 .venv/缓存）
+        run: |
+          bash scripts/publish_skill.sh \
+            --changelog "发布版本 ${GITHUB_REF_NAME}（由 tag 自动触发）"
