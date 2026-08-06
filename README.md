@@ -41,6 +41,7 @@ carrier-usage-skill/            # 仓库根（git 项目）
 - **0.4.1**：重组仓库为标准 SkillHub 布局（外层 git 项目 + 嵌套 `carrier-usage-skill/` Skill 包），并加入上游限流识别与指数退避重试。
 - **0.4.2**：联通接口层限流识别与指数退避重试正式发布。
 - **0.4.3**：新增 `scripts/publish_skill.sh` 发布脚本，发布前自动排除 `.venv`/缓存等超大目录，避免 skillhub CLI 打包失败。
+- **0.4.4**：新增 `.github/workflows/publish.yml`，推送 `v*` tag 时自动发布到 SkillHub（校验 tag 与版本一致），并补充 README 发布流程章节。
 
 | 运营商 | 话费/账单 | 用量明细 | 成员/副卡 | 其他资源 | 状态 |
 |---|---:|---:|---:|---:|---|

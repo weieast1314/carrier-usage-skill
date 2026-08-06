@@ -2,7 +2,7 @@
 name: query-carrier-usage
 slug: query-carrier-usage
 displayName: 运营商流量与资费查询
-version: 0.4.3
+version: 0.4.4
 summary: 安全查询本人或已获授权的中国运营商话费、账单、交费发票、套餐余量与成员用量
 license: Apache-2.0
 homepage: https://github.com/weieast1314/carrier-usage-skill
