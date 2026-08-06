@@ -7,6 +7,11 @@
 2. 本文件中 `## X.Y.Z` 对应段落；
 3. 兜底占位文本。
 
+## 0.4.6 - 2026-08-06
+
+- 修复联通限流重试路径的真实 bug：`china_unicom_web.py` 重试耗尽判断误用 `self.max_retries`（不存在），改为 `self._max_retries`，避免限流重试耗尽时 `AttributeError`。
+- 清理静态检查：修复 mypy `no-any-return`（退避秒数显式 `int()`）与 ruff 既有 lint（UP037/I001 等），CI 质量检查转绿。
+
 ## 0.4.5 - 2026-08-06
 
 - 修复 CI「持续集成」工作流「安装依赖」步骤失败：`pyproject.toml` 迁移到 `carrier-usage-skill/` Skill 包内，与 CI 的 `working-directory` 一致。
