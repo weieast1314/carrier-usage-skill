@@ -40,6 +40,10 @@ class RateLimitError(CarrierUsageError):
 
     exit_code = 4
 
+    def __init__(self, message: str, retry_after: int | None = None) -> None:
+        super().__init__(message)
+        self.retry_after = retry_after
+
 
 class UpstreamChangedError(CarrierUsageError):
     """运营商响应结构已经发生变化。"""

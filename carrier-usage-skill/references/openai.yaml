@@ -1,6 +1,6 @@
 interface:
   display_name: "运营商用量查询"
   short_description: "安全查询运营商话费账单、交费发票、套餐余量与成员用量"
-  icon_small: "./assets/logo.png"
-  icon_large: "./assets/logo.png"
+  icon_small: "../assets/logo.png"
+  icon_large: "../assets/logo.png"
   default_prompt: "使用 $query-carrier-usage 查询我的联通账户话费、账单和套餐余量。"

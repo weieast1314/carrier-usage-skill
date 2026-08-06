@@ -15,6 +15,7 @@ query-state.json
 *.egg-info/
 dist/
 build/
+.codebuddy/
 carrier-usage-skill/.venv/
 carrier-usage-skill/dist/
 carrier-usage-skill/build/

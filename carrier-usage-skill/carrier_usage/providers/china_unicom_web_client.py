@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
+import re
 from calendar import monthrange
-from collections.abc import Mapping
+from collections.abc import Awaitable, Callable, Mapping
 from datetime import date
 from pathlib import Path
 from typing import NoReturn
@@ -14,6 +16,7 @@ import httpx
 from carrier_usage.errors import (
     AuthenticationError,
     NetworkError,
+    RateLimitError,
     SecondaryAuthenticationRequiredError,
     UpstreamChangedError,
 )
@@ -54,10 +57,53 @@ CONTRACT_BILLS_URL = "https://m.client.10010.com/servicebusiness/query/queryFina
 CONTRACT_BILLS_REFERER = "https://img.client.10010.com/jinrongzhangdanwt/index.html#/"
 USAGE_DETAILS_URL = "https://iservice.10010.com/e4/miniservice/query/detailQuery.html"
 
+# 联通接口已知表示"请求被限流/频控"的业务 code
+UNICOM_RATE_LIMIT_CODES = frozenset(
+    {
+        "0002",  # 系统繁忙，请稍后再试
+        "1003",  # 操作过于频繁
+        "2001",  # 访问过于频繁
+        "5001",  # 请求频率超限
+        "busy",  # 部分接口用字符串 busy 表示限流
+    }
+)
+
+_RATE_LIMIT_HINT_RE = re.compile(r"频繁|限流|限频|请求过快|操作过于|系统繁忙|稍后再试|try later", re.IGNORECASE)
+
+
+def _looks_rate_limited(text: str) -> bool:
+    """从响应文案中识别联通频控提示。"""
+    return bool(_RATE_LIMIT_HINT_RE.search(text))
+
+
+def raise_for_unicom_payload(payload: Mapping[str, object], query_name: str) -> None:
+    """统一识别联通响应的限流 / 会话失效 / 结构变化。
+
+    供 ChinaUnicomWebClient 与 ChinaUnicomWebProvider 复用，避免把上游频控
+    误判为会话失效或响应结构变化。
+    """
+    status = payload.get("code", payload.get("status"))
+    status_str = str(status)
+    if status_str in {"999999", "1001", "0004"}:
+        raise AuthenticationError(f"中国联通{query_name}查询会话已失效，请重新登录")
+    if status_str != "0000" and status is not None:
+        hint = str(payload.get("msg", payload.get("message", "")))
+        if status_str in UNICOM_RATE_LIMIT_CODES or _looks_rate_limited(hint):
+            raise RateLimitError(
+                f"中国联通{query_name}查询被限流，请稍后重试（{hint or '请求过于频繁'}）"
+            )
+        raise UpstreamChangedError(f"中国联通{query_name}查询失败或响应结构已变化")
+
 
 class ChinaUnicomWebClient:
-    def __init__(self, client: httpx.AsyncClient, session_path: Path) -> None:
+    def __init__(
+        self,
+        client: httpx.AsyncClient,
+        session_path: Path,
+        max_retries: int = 3,
+    ) -> None:
         self._client = client
+        self._max_retries = max(1, int(max_retries))
         self._load_session(session_path)
 
     async def query_balance(self) -> BalanceInfo:
@@ -151,8 +197,8 @@ class ChinaUnicomWebClient:
             raise AuthenticationError("会话中没有中国联通官方 Cookie，请重新扫码登录")
 
     async def _post(self, url: str, referer: str, data: Mapping[str, str]) -> Mapping[str, object]:
-        try:
-            response = await self._client.post(
+        return await self._request(
+            lambda: self._client.post(
                 url,
                 headers={
                     "Accept": "application/json, text/plain, */*",
@@ -162,43 +208,59 @@ class ChinaUnicomWebClient:
                 data=dict(data),
                 timeout=15.0,
             )
-            response.raise_for_status()
-        except httpx.HTTPError as error:
-            raise NetworkError("中国联通网页查询失败") from error
-        try:
-            payload = response.json()
-        except json.JSONDecodeError as error:
-            raise UpstreamChangedError("中国联通网页查询返回了无效 JSON") from error
-        if not isinstance(payload, dict):
-            raise UpstreamChangedError("中国联通网页查询响应结构已变化")
-        return {str(key): value for key, value in payload.items()}
+        )
 
     async def _get(self, url: str, referer: str, params: Mapping[str, str]) -> Mapping[str, object]:
-        try:
-            response = await self._client.get(
+        return await self._request(
+            lambda: self._client.get(
                 url,
                 headers={"Accept": "application/json, text/plain, */*", "Referer": referer},
                 params=dict(params),
                 timeout=15.0,
             )
-            response.raise_for_status()
-        except httpx.HTTPError as error:
-            raise NetworkError("中国联通网页查询失败") from error
-        try:
-            payload = response.json()
-        except json.JSONDecodeError as error:
-            raise UpstreamChangedError("中国联通网页查询返回了无效 JSON") from error
-        if not isinstance(payload, dict):
-            raise UpstreamChangedError("中国联通网页查询响应结构已变化")
-        return {str(key): value for key, value in payload.items()}
+        )
+
+    async def _request(self, send: "Callable[[], Awaitable[httpx.Response]]") -> Mapping[str, object]:
+        """执行请求并在被上游限流时做有限次指数退避重试。"""
+        last_limit: RateLimitError | None = None
+        for attempt in range(self._max_retries):
+            try:
+                response = await send()
+                response.raise_for_status()
+            except httpx.HTTPError as error:
+                raise NetworkError("中国联通网页查询失败") from error
+            try:
+                payload = response.json()
+            except json.JSONDecodeError as error:
+                raise UpstreamChangedError("中国联通网页查询返回了无效 JSON") from error
+            if not isinstance(payload, dict):
+                raise UpstreamChangedError("中国联通网页查询响应结构已变化")
+            payload = {str(key): value for key, value in payload.items()}
+            try:
+                self._require_success(payload, "网页")
+            except RateLimitError as error:
+                last_limit = error
+                if attempt + 1 >= self._max_retries:
+                    break
+                backoff = self._backoff_seconds(attempt, error.retry_after)
+                await asyncio.sleep(backoff)
+                continue
+            return payload
+        # 重试耗尽后，若最后一次是限流则抛出，否则按结构变化处理
+        if last_limit is not None:
+            raise last_limit
+        raise UpstreamChangedError("中国联通网页查询响应结构已变化")
+
+    @staticmethod
+    def _backoff_seconds(attempt: int, retry_after: int | None) -> int:
+        if retry_after and retry_after > 0:
+            return retry_after
+        # 指数退避：2s, 4s, 8s ...
+        return 2 ** (attempt + 1)
 
     @staticmethod
     def _require_success(payload: Mapping[str, object], query_name: str) -> None:
-        status = payload.get("code", payload.get("status"))
-        if str(status) in {"999999", "1001", "0004"}:
-            raise AuthenticationError(f"中国联通{query_name}查询会话已失效，请重新登录")
-        if str(status) != "0000":
-            raise UpstreamChangedError(f"中国联通{query_name}查询失败或响应结构已变化")
+        raise_for_unicom_payload(payload, query_name)
 
     @classmethod
     def _require_success_if_present(cls, payload: Mapping[str, object], query_name: str) -> None:

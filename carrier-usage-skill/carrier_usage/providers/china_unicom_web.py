@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -14,6 +15,7 @@ from carrier_usage.errors import (
     AuthenticationError,
     CarrierUsageError,
     NetworkError,
+    RateLimitError,
     UpstreamChangedError,
 )
 from carrier_usage.models import (
@@ -31,7 +33,10 @@ from carrier_usage.models import (
     Status,
 )
 from carrier_usage.providers.base import AuthSession
-from carrier_usage.providers.china_unicom_web_client import ChinaUnicomWebClient
+from carrier_usage.providers.china_unicom_web_client import (
+    ChinaUnicomWebClient,
+    raise_for_unicom_payload,
+)
 from carrier_usage.providers.china_unicom_web_detail import (
     parse_web_allowances,
     parse_web_lines,
@@ -59,11 +64,14 @@ class ChinaUnicomWebProvider:
 
     provider_id = "china_unicom"
 
-    def __init__(self, config: AppConfig, client: httpx.AsyncClient) -> None:
+    def __init__(
+        self, config: AppConfig, client: httpx.AsyncClient, max_retries: int = 3
+    ) -> None:
         if config.unicom_session_path is None:
             raise AuthenticationError("缺少中国联通扫码登录会话")
         self._session_path = config.unicom_session_path
         self._client = client
+        self._max_retries = max(1, int(max_retries))
         self._business_client: ChinaUnicomWebClient | None = None
         self._payload: Mapping[str, object] | None = None
         self._detail_payload: Mapping[str, object] | None = None
@@ -241,46 +249,67 @@ class ChinaUnicomWebProvider:
             payload = response.json()
         except json.JSONDecodeError as error:
             raise UpstreamChangedError("中国联通网页汇总返回了无效 JSON") from error
-        if not isinstance(payload, dict) or not isinstance(payload.get("userInfo"), dict):
-            raise AuthenticationError("中国联通扫码会话已失效，请重新登录")
-        return {str(key): value for key, value in payload.items()}
+        if not isinstance(payload, dict):
+            raise UpstreamChangedError("中国联通网页查询响应结构已变化")
+        payload = {str(key): value for key, value in payload.items()}
+        raise_for_unicom_payload(payload, "套餐汇总")
+        if not isinstance(payload.get("userInfo"), dict):
+            raise UpstreamChangedError("中国联通套餐查询响应结构已变化")
+        return payload
 
     async def _query_detail(self) -> Mapping[str, object]:
         if self._detail_payload is None:
             self._detail_payload = await self._query_web_resource(
-                WEB_DETAIL_URL, "中国联通网页余量明细查询失败"
+                WEB_DETAIL_URL, "中国联通网页余量明细查询失败", "余量明细"
             )
         return self._detail_payload
 
     async def _query_disk(self) -> Mapping[str, object]:
         if self._disk_payload is None:
             self._disk_payload = await self._query_web_resource(
-                WEB_DISK_URL, "中国联通网页云盘查询失败"
+                WEB_DISK_URL, "中国联通网页云盘查询失败", "云盘"
             )
         return self._disk_payload
 
-    async def _query_web_resource(self, url: str, network_message: str) -> Mapping[str, object]:
-        try:
-            response = await self._client.post(
-                url,
-                headers={
-                    "Accept": "application/json, text/plain, */*",
-                    "Content-Type": "application/x-www-form-urlencoded",
-                    "Referer": WEB_DETAIL_REFERER,
-                },
-                data={"version": "WT"},
-                timeout=15.0,
-            )
-            response.raise_for_status()
-        except httpx.HTTPError as error:
-            raise NetworkError(network_message) from error
-        try:
-            payload = response.json()
-        except json.JSONDecodeError as error:
-            raise UpstreamChangedError("中国联通网页明细返回了无效 JSON") from error
-        if not isinstance(payload, dict) or str(payload.get("code")) != "0000":
-            raise AuthenticationError("中国联通扫码会话已失效，请重新登录")
-        return {str(key): value for key, value in payload.items()}
+    async def _query_web_resource(
+        self, url: str, network_message: str, query_name: str = "网页"
+    ) -> Mapping[str, object]:
+        last_limit: RateLimitError | None = None
+        for attempt in range(self._max_retries):
+            try:
+                response = await self._client.post(
+                    url,
+                    headers={
+                        "Accept": "application/json, text/plain, */*",
+                        "Content-Type": "application/x-www-form-urlencoded",
+                        "Referer": WEB_DETAIL_REFERER,
+                    },
+                    data={"version": "WT"},
+                    timeout=15.0,
+                )
+                response.raise_for_status()
+            except httpx.HTTPError as error:
+                raise NetworkError(network_message) from error
+            try:
+                payload = response.json()
+            except json.JSONDecodeError as error:
+                raise UpstreamChangedError("中国联通网页明细返回了无效 JSON") from error
+            if not isinstance(payload, dict):
+                raise UpstreamChangedError("中国联通网页查询响应结构已变化")
+            payload = {str(key): value for key, value in payload.items()}
+            try:
+                raise_for_unicom_payload(payload, query_name)
+            except RateLimitError as error:
+                last_limit = error
+                if attempt + 1 >= self.max_retries:
+                    break
+                backoff = 2 ** (attempt + 1)
+                await asyncio.sleep(backoff)
+                continue
+            return payload
+        if last_limit is not None:
+            raise last_limit
+        raise UpstreamChangedError("中国联通网页查询响应结构已变化")
 
     def _require_payload(self) -> Mapping[str, object]:
         if self._payload is None:
