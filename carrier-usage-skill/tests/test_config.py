@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import pytest
+
 from carrier_usage.account_registry import AccountRecord
 from carrier_usage.config import AppConfig, load_config
 from carrier_usage.errors import ConfigurationError

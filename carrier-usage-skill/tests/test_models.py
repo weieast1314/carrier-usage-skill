@@ -1,6 +1,7 @@
 from decimal import Decimal
 
 import pytest
+
 from carrier_usage.models import (
     AccountSnapshot,
     Allowance,

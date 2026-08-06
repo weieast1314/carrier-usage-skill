@@ -2,6 +2,7 @@ import json
 from datetime import UTC, datetime
 
 import pytest
+
 from carrier_usage.models import (
     AccountSnapshot,
     Allowance,

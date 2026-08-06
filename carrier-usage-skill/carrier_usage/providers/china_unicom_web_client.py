@@ -68,7 +68,9 @@ UNICOM_RATE_LIMIT_CODES = frozenset(
     }
 )
 
-_RATE_LIMIT_HINT_RE = re.compile(r"频繁|限流|限频|请求过快|操作过于|系统繁忙|稍后再试|try later", re.IGNORECASE)
+_RATE_LIMIT_HINT_RE = re.compile(
+    r"频繁|限流|限频|请求过快|操作过于|系统繁忙|稍后再试|try later", re.IGNORECASE
+)
 
 
 def _looks_rate_limited(text: str) -> bool:
@@ -220,7 +222,7 @@ class ChinaUnicomWebClient:
             )
         )
 
-    async def _request(self, send: "Callable[[], Awaitable[httpx.Response]]") -> Mapping[str, object]:
+    async def _request(self, send: Callable[[], Awaitable[httpx.Response]]) -> Mapping[str, object]:
         """执行请求并在被上游限流时做有限次指数退避重试。"""
         last_limit: RateLimitError | None = None
         for attempt in range(self._max_retries):
@@ -256,7 +258,7 @@ class ChinaUnicomWebClient:
         if retry_after and retry_after > 0:
             return retry_after
         # 指数退避：2s, 4s, 8s ...
-        return 2 ** (attempt + 1)
+        return int(2 ** (attempt + 1))
 
     @staticmethod
     def _require_success(payload: Mapping[str, object], query_name: str) -> None:

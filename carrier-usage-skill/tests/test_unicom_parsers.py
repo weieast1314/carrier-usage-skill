@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+
 from carrier_usage.errors import UpstreamChangedError
 from carrier_usage.models import AllowanceCategory, AllowanceScope, AllowanceUnit, Status
 from carrier_usage.providers.china_unicom import (

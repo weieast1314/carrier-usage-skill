@@ -3,6 +3,7 @@ import sys
 from pathlib import Path
 
 import pytest
+
 from carrier_usage.account_registry import AccountRegistry, default_registry_path
 from carrier_usage.cli import _parser, main
 

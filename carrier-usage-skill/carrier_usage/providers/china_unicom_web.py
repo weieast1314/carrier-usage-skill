@@ -64,9 +64,7 @@ class ChinaUnicomWebProvider:
 
     provider_id = "china_unicom"
 
-    def __init__(
-        self, config: AppConfig, client: httpx.AsyncClient, max_retries: int = 3
-    ) -> None:
+    def __init__(self, config: AppConfig, client: httpx.AsyncClient, max_retries: int = 3) -> None:
         if config.unicom_session_path is None:
             raise AuthenticationError("缺少中国联通扫码登录会话")
         self._session_path = config.unicom_session_path
@@ -301,7 +299,7 @@ class ChinaUnicomWebProvider:
                 raise_for_unicom_payload(payload, query_name)
             except RateLimitError as error:
                 last_limit = error
-                if attempt + 1 >= self.max_retries:
+                if attempt + 1 >= self._max_retries:
                     break
                 backoff = 2 ** (attempt + 1)
                 await asyncio.sleep(backoff)

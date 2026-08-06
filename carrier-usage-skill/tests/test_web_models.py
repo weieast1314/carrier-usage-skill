@@ -2,6 +2,7 @@ from datetime import date
 from decimal import Decimal
 
 import pytest
+
 from carrier_usage.errors import ConfigurationError
 from carrier_usage.web_models import BalanceInfo, parse_month, parse_month_range
 

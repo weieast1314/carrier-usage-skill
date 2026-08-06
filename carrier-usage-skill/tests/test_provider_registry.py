@@ -2,6 +2,7 @@ from collections.abc import Callable
 
 import httpx
 import pytest
+
 from carrier_usage.config import AppConfig
 from carrier_usage.errors import UnsupportedCapabilityError
 from carrier_usage.providers.base import CarrierProvider, create_provider, register_provider

@@ -2,6 +2,7 @@ import stat
 from pathlib import Path
 
 import pytest
+
 from carrier_usage.errors import ConfigurationError
 from carrier_usage.web_session import (
     default_session_path,

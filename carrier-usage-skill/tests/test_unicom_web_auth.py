@@ -2,6 +2,7 @@ from pathlib import Path
 from typing import Self
 
 import pytest
+
 from carrier_usage.auth.china_unicom_web import (
     LOGIN_URL,
     is_allowed_unicom_url,
